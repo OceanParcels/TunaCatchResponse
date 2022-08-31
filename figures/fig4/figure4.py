@@ -20,13 +20,20 @@ def init_pDir():
     return pDir
 
 
-def update_pDir(pDir, typ, con, tb, p, GOFt='AIC', bootstrapping=False):
+def update_pDir(pDir, typ, con, tb, p, GOFt='AIC', bootstrapping=False,
+                removeF1=False):
     if(bootstrapping):
         file = np.load('Poutput/GOF_%s_%s_%s_p%.1f_its%d.npz' % (typ,
                                                                  con,
                                                                  tb,
                                                                  p,
                                                                  2000))
+    elif(removeF1):
+        file = np.load('Poutput/GOF_gF1_median_%s_%s_%s_p%.1f_its%d.npz' % (typ,
+                                                                        con,
+                                                                        tb,
+                                                                        p,
+                                                                        1))
     else:
         file = np.load('Poutput/GOF_median_%s_%s_%s_p%.1f_its%d.npz' % (typ,
                                                                         con,
@@ -56,9 +63,11 @@ def update_pDir(pDir, typ, con, tb, p, GOFt='AIC', bootstrapping=False):
 if(__name__ == '__main__'):
     fs = 16
     GOFt = 'AIC'
+    removeF1 = False
     assert GOFt in ['AIC', 'NRMSE', 'BIC']
-    typs = ['LV', 'PC', 'H2', 'H3', 'BDA', 'GRD2', 'g1', 'g1mod', 'g2', 'g3',
-            'g4', 'g5', 'g5mod', 'gBCM',
+    typs = ['LV', 'PC', 'H2', 'H3', 'BDA', 'GRD2', 'g1',
+            'g2', 'g3',
+            'g4', 'g5',
             'g6']
     fig = plt.figure(figsize=(16, 5))
     outer_grid = fig.add_gridspec(1, 4, wspace=0.12,
@@ -76,12 +85,12 @@ if(__name__ == '__main__'):
     if(GOFt == 'AIC'):
         cmap = 'Greys'
         fmt = ".0f"
-        vs = [50, 2600]
+        vs = [20, 1000]
         axso[3].set_title('AIC', fontsize=fs)
     elif(GOFt == 'NRMSE'):
         cmap = 'cividis_r'
         fmt = ".2f"
-        vs = [0.9, 3]
+        vs = [0.35, 3]
         axso[3].set_title('NRMSE', fontsize=fs)
     elif(GOFt == 'BIC'):
         cmap = 'Greys'
@@ -95,10 +104,12 @@ if(__name__ == '__main__'):
             pDir = init_pDir()
             for typ in typs:
                 if(p == 0):
-                    pDir = update_pDir(pDir, typ, con, 'PFeq', p, GOFt=GOFt)
+                    pDir = update_pDir(pDir, typ, con, 'PFeq', p, GOFt=GOFt,
+                                       removeF1=removeF1)
                 else:
                     for tb in ['Fdom', 'PFeq', 'Pdom']:
-                        pDir = update_pDir(pDir, typ, con, tb, p, GOFt=GOFt)
+                        pDir = update_pDir(pDir, typ, con, tb, p, GOFt=GOFt,
+                                           removeF1=removeF1)
 
             pDir = pd.DataFrame.from_dict(pDir)
             pDir = pDir.pivot("trophic function", "behaviour", "AIC")
@@ -117,31 +128,48 @@ if(__name__ == '__main__'):
                 if(len(pDirnc.keys()) > 1):
                     for key in pDirnc.keys():
                         pDirnc[key] = (pDirnc[key]-pDirnc[key].mean()) / pDirnc[key].std() * 100
-                g = sns.heatmap(data=pDir, ax=axs[pi],
-                                annot=True, fmt=fmt,
-                                 alpha=0, cbar_ax=axso[-1],
-                                 cmap=cmap,
-                                 linewidths=.5, linecolor='k')
-                g = sns.heatmap(data=pDirnc, ax=axs[pi],
+                if(p == 0):
+                    if(con == 'RW'):
+                        vm = 200
+                    elif(con == 'BJ'):
+                        vm = 800
+                    else:
+                        vm = 1500
+                else:
+                    vm = 1000
+                g = sns.heatmap(data=pDirnc,
+                                ax=axs[pi],
                                 annot=False,
                                 cbar_ax=axso[-1],
                                 cmap=cmap,
+                                linewidths=.5, linecolor='k')
+                g = sns.heatmap(data=pDir, ax=axs[pi],
+                                annot=True, fmt=fmt,
+                                alpha=0,
+                                cbar_ax=axso[-1],
+                                cmap=cmap, vmax=vm,
                                 linewidths=.5, linecolor='k')
             if(pi == 0):
                 axs[pi].set_title('FSrandom', fontsize=fs)
             elif(pi == 1):
                 axs[pi].set_title('FSinfo', fontsize=fs)
-
             if(ci > 0 or pi > 0):
                 axs[pi].set_ylabel('')
                 axs[pi].set_yticklabels(['']*len(typs))
             else:
                 axs[pi].set_ylabel('trophic function', fontsize=fs)
+                axs[pi].set_yticklabels(['LV', 'PC', 'H2', 'H3', 'BDA',
+                                         'GRD2', 'g$_1$', 'g$_2$', 'g$_3$',
+                                         'g$_4$', 'g$_5$', 'g$_6$'],
+                                        fontsize=fs)
                 g.set_yticklabels(g.get_yticklabels(), rotation=0,
                                   horizontalalignment='right')
             axs[pi].set_xlabel('behaviour', fontsize=fs)
             axs[pi].tick_params(labelsize=fs)
     if(GOFt != 'NRMSE'):
         axso[-1].remove()
-    plt.savefig('figure4.pdf', bbox_inches='tight')
+    if(removeF1):
+        plt.savefig('figure4_Fg0_%s.pdf' % (GOFt), bbox_inches='tight')
+    else:
+        plt.savefig('figure4_%s.pdf' % (GOFt), bbox_inches='tight')
     plt.show()
