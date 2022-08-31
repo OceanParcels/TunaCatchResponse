@@ -136,7 +136,7 @@ if(__name__ == '__main__'):
                     else:
                         vm = 1500
                 else:
-                    vm = 1000
+                    vm = 1500
                 g = sns.heatmap(data=pDirnc,
                                 ax=axs[pi],
                                 annot=False,
